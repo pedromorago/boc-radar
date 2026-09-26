@@ -127,7 +127,7 @@ Opciones para el fetch:
 
 **Recomendación:** probar primero (b), porque es barata de comprobar. Si el filtro resulta ser por proveedor, pasar a (a). En ambos casos, separar el fetch (que deja el HTML crudo versionado o como artefacto) del procesamiento. Así el núcleo sigue siendo puro y testeable sin red, y la ubicación del fetch es un detalle intercambiable.
 
-Esta decisión es cara de revertir, así que la toma el dueño del proyecto.
+**Decisión (2026-09-26): se prueba primero (b).** La prueba es una función en AWS Lambda en `eu-south-2` (España) que pide `robots.txt` y el calendario del BOC, con `boe.es` como control. Se elige Lambda por su capa gratuita permanente y porque se prueba desde la consola, sin herramientas de despliegue. Si falla, se pasa a (a). El resultado se anotará aquí.
 
 ### H1. No todos los hitos se publican en el BOC
 Hay indicios de que el BOC recoge la convocatoria, las listas de admitidos (con fecha y lugar del **primer** ejercicio) y los nombramientos. En cambio, las plantillas, las calificaciones de cada ejercicio y, previsiblemente, las **fechas de los ejercicios siguientes** se publican solo en `empleopublico.cantabria.es`.
@@ -145,8 +145,12 @@ Opciones:
 
 **Recomendación: (b).** El objetivo del producto es no perder fechas de examen, y diseñar la interfaz `Source` desde el principio cuesta poco ahora y mucho después. Implica adelantar a la Fase 1 la interfaz que el roadmap sitúa en la Fase 7.
 
+**Decisión (2026-09-26): aceptada (b).** Bloque 1.8 en el roadmap e interfaz `Source` desde la Fase 1.
+
 ### H2. "CTS Gestión" no aparece como tal
-Existen el **Cuerpo Técnico Superior** (A1), con Rama Jurídica entre otras, y el **Cuerpo de Gestión** (A2), que es un cuerpo distinto. No se ha encontrado ninguna "Rama Gestión" del CTS. Hay que aclarar a qué cuerpo se refiere el roadmap. Mi hipótesis es el Cuerpo de Gestión (A2).
+Existen el **Cuerpo Técnico Superior** (A1), con Rama Jurídica entre otras, y el **Cuerpo de Gestión** (A2), que es un cuerpo distinto. No se ha encontrado ninguna "Rama Gestión" del CTS. Hay que aclarar a qué cuerpo se refiere el roadmap.
+
+**Decisión (2026-09-26):** es el **Cuerpo de Gestión (A2)**. Roadmap corregido.
 
 ### H3. La fecha del examen está dentro del PDF, no en el sumario
 El sumario solo da el título: *"...se aprueba la relación definitiva de admitidos... y se fija la fecha del primer ejercicio"*. En la Fase 1 el aviso puede decir "se ha publicado la resolución que fija la fecha", con enlace, pero **no la fecha**.
