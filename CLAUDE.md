@@ -28,7 +28,7 @@ El roadmap completo está en `docs/ROADMAP.md`. Trabaja siempre por fases y no a
 ```
 packages/
   core/        dominio puro: tipos, schemas zod, clasificador, dedupe, reglas
-  sources/     fetchers + parsers por fuente (BOC ahora, ayuntamientos después)
+  sources/     fetchers + parsers por fuente (BOC y portal de empleo público ahora, ayuntamientos después)
   notifier/    canales (telegram, email, whatsapp) + outbox
   storage/     lectura/escritura de data/*.json con schemas versionados
 apps/

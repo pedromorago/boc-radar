@@ -50,7 +50,7 @@ Cada fase termina con un entregable funcionando, su CI en verde y su criterio de
 ### 1.4 Clasificador (`packages/core`)
 - Reglas declarativas en `config/rules.yaml`: cuerpo, tipo de hito (plazo de inscripción, lista de admitidos, fecha de examen, resultados...), patrones y organismo.
 - Hitos iniciales:
-  - CTS Rama Jurídica y CTS Gestión: fechas de examen.
+  - CTS Rama Jurídica (A1) y Cuerpo de Gestión (A2): fechas de examen.
   - Cuerpo Administrativo y Cuerpo General Auxiliar: apertura de plazo y fechas de examen.
 - Cada clasificación devuelve la regla que la disparó (trazabilidad para depurar falsos positivos).
 - Normalización de texto: tildes, mayúsculas y variantes ("Cuerpo Técnico Superior" frente a "CTS").
@@ -69,6 +69,14 @@ Cada fase termina con un entregable funcionando, su CI en verde y su criterio de
 - Commit automático de `data/` solo si hay cambios, con un bot identificado.
 - `concurrency` para evitar dos ejecuciones simultáneas.
 - El job falla si: error de red persistente, parseo inválido, 0 anuncios en un día con boletín o cambio de huella sin revisar.
+- **Ubicación del fetch pendiente de ADR 0001 (H0):** `cantabria.es` no responde a los runners de GitHub, así que la descarga se separa del procesamiento y se ejecuta desde un origen que el BOC acepte.
+
+### 1.8 Portal de Empleo Público (`packages/sources/empleopublico`)
+- Interfaz `Source` común (fetch, parse, huella) diseñada aquí y usada también por el BOC. Se adelanta de la Fase 7 (ADR 0001, H1).
+- Fichas por proceso de los cuerpos objetivo en `empleopublico.cantabria.es`.
+- Cubre los hitos que no salen en el BOC: plantillas, calificaciones y fechas de los ejercicios posteriores al primero.
+- Mismas garantías que el BOC: fixtures reales, huella estructural y fallo alto ante 0 resultados.
+- Dedupe entre fuentes: el mismo hito publicado en el BOC y en el portal no genera dos novedades.
 
 ### Tests de la fase
 - Contrato: todos los fixtures producen exactamente su `expected.json`.
@@ -198,7 +206,7 @@ Cada fase termina con un entregable funcionando, su CI en verde y su criterio de
 
 **Objetivo:** ampliar cobertura sin reescribir.
 
-- Interfaz `Source` común (fetch, parse, huella) para añadir fuentes como plugins.
+- Reutilizar la interfaz `Source` creada en la Fase 1.8 para añadir fuentes como plugins.
 - Primera ampliación: anuncios de ayuntamientos de Cantabria publicados en el propio BOC (sección de administración local).
 - Reglas por ayuntamiento y categoría de puesto afín (jurídico, administrativo, auxiliar) configurables en YAML.
 - Nivel de aviso "radar": solo resumen semanal, nunca aviso inmediato, salvo que se configure lo contrario.
