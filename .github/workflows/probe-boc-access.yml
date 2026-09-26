@@ -27,6 +27,7 @@ jobs:
           probe() {
             local url="$1" mode="${2:-head}"
             echo "===== PROBE $url ====="
+            rm -f headers.txt body.bin body.txt   # evita arrastrar la respuesta anterior si esta falla
             curl -sS -A "$UA" --max-time 30 -D headers.txt -o body.bin \
               -w 'HTTP=%{http_code} TYPE=%{content_type} SIZE=%{size_download} TIME=%{time_total} REMOTE=%{remote_ip}\n' "$url"
             echo "CURL_EXIT=$?"
