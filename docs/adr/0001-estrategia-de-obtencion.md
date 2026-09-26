@@ -6,7 +6,7 @@
 
 ## Nota sobre el método
 
-Durante esta investigación el entorno de ejecución **no tenía acceso de red** a `boc.cantabria.es` ni a ningún dominio `*.cantabria.es` (el proxy de salida rechaza la conexión). Todo lo de abajo sale de índices de buscadores (títulos, fragmentos y URLs indexadas) y de fuentes secundarias, no de peticiones reales al BOC.
+Ni el entorno de investigación ni los runners de GitHub Actions han conseguido conectar con ningún host `*.cantabria.es` (ver [H0](#h0-los-servidores-de-cantabriaes-no-responden-a-ips-de-centros-de-datos-fuera-de-españa)). Todo lo de abajo, salvo H0, sale de índices de buscadores (títulos, fragmentos y URLs indexadas) y de fuentes secundarias, no de peticiones reales al BOC.
 
 Por eso cada afirmación lleva una etiqueta de confianza:
 
@@ -102,7 +102,34 @@ No se sabe si el calendario acepta una fecha como parámetro ni cómo distingue 
 
 ## Hallazgos que no encajan con el roadmap (requieren decisión)
 
-**H1. No todos los hitos se publican en el BOC.**
+### H0. Los servidores de `cantabria.es` no responden a IPs de centros de datos fuera de España
+
+**[CONFIRMADO]** 2026-09-26, con dos orígenes de red independientes:
+
+| Origen | `*.cantabria.es` | Controles |
+|---|---|---|
+| Entorno cloud de investigación (Full network access) | El túnel se abre y el servidor no responde al *ClientHello* TLS. Reset tras ~11 s en `boc`, `www` y `empleopublico`. | Responden: `boe.es`, `bocm.es`, `scsalud.es`, `unican.es`, `parlamento-cantabria.es`. |
+| Runner de GitHub Actions `ubuntu-latest` (IP de Microsoft, AS8075, Des Moines, EE. UU.) | *Timeout* de conexión TCP (30 s) en `boc`, `aplicacionesweb`, `www` y `empleopublico`, por HTTPS y por HTTP. | `boe.es` responde en 1,2 s. |
+
+Evidencia: [run 36207102024](https://github.com/pedromorago/boc-radar/actions/runs/36207102024) del workflow temporal `probe-boc-access`.
+
+**Interpretación [INDICIO]:** el cortafuegos del Gobierno de Cantabria descarta el tráfico de IPs de *hosting*, de fuera de España o de ambos. Los organismos de Cantabria alojados en otras redes, como el Servicio Cántabro de Salud o la Universidad, sí responden. Falta distinguir si el filtro es **geográfico** (ES/UE) o **por proveedor** (rangos cloud). Se sabrá probando desde una IP de centro de datos en España.
+
+**Consecuencia:** el supuesto de la Fase 1.7 (cron en runners de GitHub) **no se cumple**. El fetch tiene que salir desde una IP que el BOC acepte. El resto del pipeline (clasificar, persistir, web, notificar) no toca `cantabria.es` y puede seguir en GitHub Actions.
+
+Opciones para el fetch:
+
+| Opción | Coste | Pros | Contras |
+|---|---|---|---|
+| **(a) Runner *self-hosted* en casa** (Raspberry Pi, NAS o PC con IP residencial española), con etiqueta propia y usado solo por el workflow de fetch | ~0 € | Se mantiene todo en GitHub Actions. IP legítima de un ciudadano en España. | La máquina tiene que estar encendida y conectada, y hay que vigilarla con el *dead man's switch*. Un runner *self-hosted* en **repo público** es un riesgo conocido: nunca debe ejecutar workflows de PR (sin `pull_request`, fork PRs con aprobación obligatoria). Encaja con la Fase 6. |
+| **(b) Función en la nube en región España** (AWS `eu-south-2`, GCP `europe-southwest1` o Azure Spain Central), que deja el HTML crudo donde lo recoja GitHub Actions | Capa gratuita, probablemente | Sin hardware propio y con alta disponibilidad. | **Solo sirve si el filtro es geográfico**, no por proveedor: hay que probarlo antes. Suma una nube y credenciales. |
+| **(c) Proxy residencial comercial** | De pago | — | Enmascara el origen para esquivar un filtro: éticamente discutible y contrario al espíritu del proyecto. **Descartada.** |
+
+**Recomendación:** probar primero (b), porque es barata de comprobar. Si el filtro resulta ser por proveedor, pasar a (a). En ambos casos, separar el fetch (que deja el HTML crudo versionado o como artefacto) del procesamiento. Así el núcleo sigue siendo puro y testeable sin red, y la ubicación del fetch es un detalle intercambiable.
+
+Esta decisión es cara de revertir, así que la toma el dueño del proyecto.
+
+### H1. No todos los hitos se publican en el BOC
 Hay indicios de que el BOC recoge la convocatoria, las listas de admitidos (con fecha y lugar del **primer** ejercicio) y los nombramientos. En cambio, las plantillas, las calificaciones de cada ejercicio y, previsiblemente, las **fechas de los ejercicios siguientes** se publican solo en `empleopublico.cantabria.es`.
 
 Ejemplos indexados:
@@ -118,10 +145,10 @@ Opciones:
 
 **Recomendación: (b).** El objetivo del producto es no perder fechas de examen, y diseñar la interfaz `Source` desde el principio cuesta poco ahora y mucho después. Implica adelantar a la Fase 1 la interfaz que el roadmap sitúa en la Fase 7.
 
-**H2. "CTS Gestión" no aparece como tal.**
+### H2. "CTS Gestión" no aparece como tal
 Existen el **Cuerpo Técnico Superior** (A1), con Rama Jurídica entre otras, y el **Cuerpo de Gestión** (A2), que es un cuerpo distinto. No se ha encontrado ninguna "Rama Gestión" del CTS. Hay que aclarar a qué cuerpo se refiere el roadmap. Mi hipótesis es el Cuerpo de Gestión (A2).
 
-**H3. La fecha del examen está dentro del PDF, no en el sumario.**
+### H3. La fecha del examen está dentro del PDF, no en el sumario
 El sumario solo da el título: *"...se aprueba la relación definitiva de admitidos... y se fija la fecha del primer ejercicio"*. En la Fase 1 el aviso puede decir "se ha publicado la resolución que fija la fecha", con enlace, pero **no la fecha**.
 
 La cuenta atrás de la Fase 4 necesita la fecha real. Eso exige una de dos cosas:
@@ -186,6 +213,7 @@ Flujo para una fecha D (razonando en `Europe/Madrid`):
 **Negativas**
 - Depende de la maquetación HTML. Se mitiga con huella estructural, fixtures reales y la suite `live`.
 - Depende de que el sitio esté disponible, sin SLA conocido.
+- El fetch no puede ejecutarse en runners de GitHub (H0): hace falta un origen de red aceptado por `cantabria.es`, que es una pieza más que operar y monitorizar.
 - Sin fecha de examen hasta resolver H3, y sin los hitos que solo salen en el portal hasta resolver H1.
 - Posible codificación antigua (ISO-8859-1). **[PENDIENTE]**
 
@@ -193,14 +221,16 @@ Flujo para una fecha D (razonando en `Europe/Madrid`):
 - **1.1:** el descubrimiento devuelve 0..n boletines por fecha, no un booleano.
 - **1.3:** añadir dos casos de fixture: "día con ordinario y extraordinario" y "extraordinario en fin de semana".
 - **1.5:** la corrección se enlaza con el original por número de boletín, fecha y título, no por un ID.
-- **1.7:** configuración de días inhábiles por año, y el corte horario como condición de fallo.
+- **1.7:** configuración de días inhábiles por año, y el corte horario como condición de fallo. **El fetch se separa del procesamiento** y se ejecuta donde decida H0; `scrape.yml` procesa el HTML crudo que deja el fetch.
 - **Si se acepta H1-(b):** bloque 1.8 con el portal de empleo público e interfaz `Source` desde la Fase 1.
 
 ---
 
 ## Plan de verificación (bloqueante)
 
-Requiere que el entorno tenga acceso de red a `boc.cantabria.es`, `www.cantabria.es` y `empleopublico.cantabria.es`. Cada punto deja evidencia en este ADR, y los HTML de ejemplo se guardan como candidatos a fixture en la Fase 1.3.
+Requiere un origen de red que `cantabria.es` acepte (ver H0). Mientras no exista, se puede ejecutar `probe-boc-access` en un runner *self-hosted* o hacer las comprobaciones a mano desde un navegador en España. Cada punto deja evidencia en este ADR, y los HTML de ejemplo se guardan como candidatos a fixture en la Fase 1.3.
+
+0. **H0:** comprobar si una IP de centro de datos **en España** llega a `boc.cantabria.es`. Decide entre las opciones (a) y (b).
 
 1. `robots.txt` de los tres hosts.
 2. Aviso legal y condiciones de reutilización de `boc.cantabria.es`.
