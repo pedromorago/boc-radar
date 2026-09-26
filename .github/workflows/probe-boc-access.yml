@@ -1,0 +1,58 @@
+# TEMPORAL (Fase 0.1, ADR 0001): comprueba si los runners de GitHub Actions
+# llegan a *.cantabria.es. No es código de producto. Se borra al cerrar el ADR.
+name: probe-boc-access
+
+on:
+  push:
+    branches: [claude/pending-instructions-6dafu8]
+    paths: [.github/workflows/probe-boc-access.yml]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      UA: "boc-radar-probe/0.1 (+https://github.com/pedromorago/boc-radar)"
+    steps:
+      - name: Runner egress
+        run: curl -sS --max-time 10 https://ipinfo.io/json || true
+
+      - name: Probe hosts
+        run: |
+          set +e
+          # probe URL [modo]  modo: full = cuerpo completo, links = solo enlaces, head = primeros 3 KB
+          probe() {
+            local url="$1" mode="${2:-head}"
+            echo "===== PROBE $url ====="
+            curl -sS -A "$UA" --max-time 30 -D headers.txt -o body.bin \
+              -w 'HTTP=%{http_code} TYPE=%{content_type} SIZE=%{size_download} TIME=%{time_total} REMOTE=%{remote_ip}\n' "$url"
+            echo "CURL_EXIT=$?"
+            echo "--- headers ---"; cat headers.txt 2>/dev/null
+            [ -s body.bin ] || { echo "(sin cuerpo)"; sleep 2; return; }
+            cs=$(file -b --mime-encoding body.bin)
+            echo "--- body ($cs, mode=$mode) ---"
+            if [ "$cs" = binary ]; then echo "(binario)";
+            else
+              iconv -f "$cs" -t utf-8 -c body.bin > body.txt 2>/dev/null || cp body.bin body.txt
+              case "$mode" in
+                full)  cat body.txt ;;
+                links) grep -oiE 'href="[^"]+"' body.txt | sort -u ;;
+                *)     head -c 3000 body.txt ;;
+              esac
+            fi
+            echo; echo "===== END $url ====="
+            sleep 2
+          }
+          probe https://www.boe.es/robots.txt                                   # control
+          probe https://boc.cantabria.es/robots.txt full
+          probe https://boc.cantabria.es/boces/ full
+          probe "https://boc.cantabria.es/boces/boletines.do?boton=UltimoBOCPublicado" full
+          probe https://aplicacionesweb.cantabria.es/boces/
+          probe http://boc.cantabria.es/boces/
+          probe https://www.cantabria.es/robots.txt full
+          probe https://www.cantabria.es/web/gobierno/enlaces_rss links
+          probe https://empleopublico.cantabria.es/robots.txt full
+          exit 0
